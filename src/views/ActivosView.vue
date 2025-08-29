@@ -113,7 +113,7 @@
                 <div class="card p-4 mb-4">
                     <h5 class="mb-4">Tercero Asignado</h5>
                     <div class="row mb-3">
-                        <div class="col-md-12 position-relative">
+                        <div class="col-md-10 position-relative">
                             <label class="form-label">Tercero</label>
                             <input type="text" class="form-control" v-model="terceroInput" @input="filtrarTerceros" @focus="showTerceroList = true" @blur="ocultarTerceroList" autocomplete="off" :readonly="retirado === 1"/>
                             <ul v-if="showTerceroList && tercerosFiltrados.length" class="list-group position-absolute w-100" style="z-index:10; max-height:180px; overflow-y:auto;">
@@ -167,6 +167,7 @@
                         <button
                           type="button"
                           class="btn-historial"
+                          :disabled="retirado === 1"
                           @click.prevent="handleHistorial"
                         >
                           Historial
@@ -174,6 +175,7 @@
                         <button
                           type="button"
                           class="btn-limpiar"
+                          :disabled="retirado === 1"
                           @click.prevent="limpiar"
                         >
                           Limpiar
@@ -632,7 +634,6 @@ const ocultarTerceroList = () => {
 // Función para limpiar los campos
 const limpiar = () => {
     datos_activo.value = null;
-    codigo.value = "";
     descripcion.value = "";
     modelo.value = "";
     serie.value = "";
