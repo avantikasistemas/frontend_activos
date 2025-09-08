@@ -58,30 +58,38 @@
                     </div>
                 </div>
             </div>
-            <!-- <div class="col-lg-12">
-                <div class="card p-4 mb-4">
-                    <div class="row mb-4">
-                        <h6>3. Observaciones Generales</h6>
-                        <textarea class="form-control" rows="6"></textarea>
-                    </div>
-                </div>
-            </div> -->
             <div class="col-lg-12">
                 <div class="card p-4 mb-4">
                     <div class="row mb-4">
-                        <h6>3. Firmas</h6>
+                        <h6>3. Observaciones Generales</h6>
+                        <textarea class="form-control" rows="6" required></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-12">
+                <div class="card p-4 mb-4">
+                    <div class="row mb-4">
+                        <h6>4. Firmas</h6>
                         <div class="firmas-acta-container">
                             <div class="firma-acta-block">
-                                <!-- <input type="file" class="firma-acta-file" accept="image/*" />
-                                <div class="firma-acta-line"></div>
-                                <div class="firma-acta-label">Entrega</div> -->
-                                <button type="button" class="btn btn-danger">Generar</button>
-                            </div>
-                            <!-- <div class="firma-acta-block">
                                 <div class="firma-acta-line"></div>
                                 <div class="firma-acta-label">Recibe</div>
-                                <input type="file" class="firma-acta-file" accept="image/*" />
-                            </div> -->
+                                <input type="file" id="firma_tercero" class="firma-acta-file" accept="image/*" @change="handleImageChange($event)" required />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-12">
+                <div class="card p-4 mb-4">
+                    <div class="row mb-4">
+                        <h6>5. Acciones</h6>
+                        <div class="firmas-acta-container">
+                            <div class="firma-acta-block-accion">
+                                <div>
+                                    <button type="button" class="btn btn-danger" @click="responderActa">Enviar</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -132,31 +140,6 @@
         </div>
     </div>
 
-    <!-- Modal de pregunta -->
-    <div class="modal fade" id="preguntaModal" tabindex="-1" aria-labelledby="preguntaModalLabel" aria-hidden="true" data-bs-backdrop="static" ref="preguntaModal">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-warning text-white">
-                    <div class="d-flex align-items-center w-100">
-                        <span class="me-2" style="font-size:2.5rem;line-height:1;">&#9888;</span>
-                        <h5 class="modal-title flex-grow-1" id="preguntaModalLabel" style="color: black;">Pregunta</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                </div>
-                <div class="modal-body text-center">
-                    <strong>¿Estás seguro de que deseas retirar el activo?</strong>
-                    <div class="mt-3">
-                        <textarea class="form-control" rows="3" placeholder="Escribe el motivo..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-warning" @click="retirarActivo">Confirmar</button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Overlay de carga -->
     <div v-if="loading" class="loading-overlay">
         <div class="spinner-border text-light" role="status">
@@ -177,12 +160,16 @@ import logotipo from '@/assets/logotipo.png';
 import apiUrl from "../../config.js";
 
 const route = useRoute();
-const tercero = route.params.tercero;
+const pdf_generado_id = route.params.id;
+
 const nombre = ref('');
 const cargo = ref('');
 const area = ref('');
 const data_response = ref({});
 const data_activos = ref([]);
+const payload = ref(null);
+const observaciones = ref(null);
+const firma_tercero = ref(null);
 
 const msg = ref('');
 const errorMsg = ref('');
@@ -190,19 +177,18 @@ const modalTitle = ref('');
 
 const modalInstance = ref(null);
 const modalErrorInstance = ref(null);
-const modalPreguntaInstance = ref(null);
 
 const loading = ref(false);
 const loading_msg = ref('');
 
 // Función para consultar el historial de un activo
-const consultarActivosXtercero = async () => {
+const consultarDatosPdf = async () => {
 
     try {
         const response = await axios.post(
-            `${apiUrl}/activos_x_tercero`,
+            `${apiUrl}/consultar_datos_pdf`,
             { 
-                tercero: tercero
+                pdf_generado_id: parseInt(pdf_generado_id)
             },
             {
                 headers: {
@@ -212,13 +198,14 @@ const consultarActivosXtercero = async () => {
         );
 
         if (response.status === 200) {
-            if (response.data.data && Object.keys(response.data.data).length > 0) {
-                data_response.value = response.data.data;
-                data_activos.value = data_response.value.activos || [];
-                nombre.value = data_response.value.cabecera?.nombres || '';
-                cargo.value = data_response.value.cabecera?.cargo || '';
-                area.value = data_response.value.cabecera?.macroproceso_nombre || '';
-            }
+            data_response.value = response.data.data;
+            payload.value = JSON.parse(data_response.value.payload);
+            
+            nombre.value = payload.value.payload.cabecera.nombres;
+            cargo.value = payload.value.payload.cabecera.cargo;
+            area.value = payload.value.payload.cabecera.macroproceso_nombre;
+
+            data_activos.value = payload.value.payload.activos;
         }
     } catch (error) {
         console.error(error);
@@ -227,16 +214,52 @@ const consultarActivosXtercero = async () => {
     }
 };
 
+// Función para responder el acta
+const responderActa = async () => {
+
+    try {
+        const response = await axios.post(
+            `${apiUrl}/responder_acta`,
+            { 
+                pdf_generado_id: parseInt(pdf_generado_id),
+                observaciones: observaciones.value,
+                firma_tercero: firma_tercero.value
+            },
+            {
+                headers: {
+                    Accept: "application/json",
+                }
+            }
+        );
+
+        if (response.status === 200) {
+            console.log(response.data.data);
+        }
+    } catch (error) {
+        console.error(error);
+        modalErrorInstance.value.show();
+        errorMsg.value = error.response.data.message;
+    }
+};
+
+const handleImageChange = async (event) => {
+    const file = event.target.files[0]; // Obtenemos el archivo cargado
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+            firma_tercero.value = reader.result; // Base64 de la imagen
+        };
+        reader.readAsDataURL(file);
+    }
+};
+
 
 // Código que se ejecuta al montar el componente
 onMounted(() => {
   modalInstance.value = new Modal(exitoModal);
   modalErrorInstance.value = new Modal(errorModal);
-  modalPreguntaInstance.value = new Modal(preguntaModal);
 
-  consultarActivosXtercero();
-
-
+  consultarDatosPdf();
 });
 
 </script>
@@ -327,6 +350,11 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     align-items: center;
+}
+.firma-acta-block-accion {
+    width: 32%;
+    display: flex;
+    flex-direction: column;
 }
 .firma-acta-line {
     width: 100%;
