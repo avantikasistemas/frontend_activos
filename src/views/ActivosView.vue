@@ -11,7 +11,18 @@
                 <div class="card p-4 mb-4">
                     <div class="detalle-activo-title">
                         <h5 class="mb-4">Detalles del Activo</h5>
-                        <p v-if="retirado === 1">Activo retirado el día {{ fecha_retiro }}</p>
+                           <div v-if="retirado === 1" class="d-flex align-items-center gap-2">
+                               <p class="mb-0">Activo retirado el día {{ fecha_retiro }}</p>
+                               <button
+                                   v-if="motivoRetiroMostrar"
+                                   type="button"
+                                   class="btn btn-tercero-link btn-motivo-retiro"
+                                   :title="motivoRetiroMostrar"
+                                   style="margin-left:4px;"
+                               >
+                                   <span class="icon-tercero-link">&#128203;</span>
+                               </button>
+                           </div>
                     </div>
                     <form>
                         <div class="row mb-4">
@@ -113,7 +124,7 @@
                 <div class="card p-4 mb-4">
                     <h5 class="mb-4">Tercero Asignado</h5>
                     <div class="row mb-3">
-                        <div class="col-md-10 position-relative">
+                        <div class="col-md-11 position-relative">
                             <label class="form-label">Tercero</label>
                             <input type="text" class="form-control" v-model="terceroInput" @input="filtrarTerceros" @focus="showTerceroList = true" @blur="ocultarTerceroList" autocomplete="off" :readonly="retirado === 1"/>
                             <ul v-if="showTerceroList && tercerosFiltrados.length" class="list-group position-absolute w-100" style="z-index:10; max-height:180px; overflow-y:auto;">
@@ -121,6 +132,17 @@
                                     {{ item.id }} - {{ item.nombre }}
                                 </li>
                             </ul>
+                        </div>
+                        <div class="col-md-1 d-flex align-items-end justify-content-center">
+                            <button
+                                type="button"
+                                class="btn btn-primary btn-tercero-link"
+                                :disabled="!tercero"
+                                @click="abrirTerceroEnNuevaPestana"
+                                title="Abrir tercero en nueva pestaña"
+                            >
+                                <span class="icon-tercero-link">&#128279;</span>
+                            </button>
                         </div>
                         <div class="col-md-12 position-relative">
                             <label class="form-label">Macroproceso</label>
@@ -167,7 +189,6 @@
                         <button
                           type="button"
                           class="btn-historial"
-                          :disabled="retirado === 1"
                           @click.prevent="handleHistorial"
                         >
                           Historial
@@ -316,6 +337,7 @@
 
 import { ref, onMounted, watch } from 'vue';
 // import LayoutView from '../views/Layouts/LayoutView.vue';
+import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { Modal } from 'bootstrap';
 import logotipo from '@/assets/logotipo.png';
@@ -362,6 +384,7 @@ const listTerceros = ref([]);
 
 const msg = ref('');
 const motivoRetiro = ref("");
+const motivoRetiroMostrar = ref("");
 const errorMsg = ref('');
 const modalTitle = ref('');
 const historial = ref([]);
@@ -374,6 +397,8 @@ const modalHistorialInstance = ref(null);
 const loading = ref(false);
 const loading_msg = ref('');
 const api_ruta = ref('');
+
+const router = useRouter();
 
 // Función para buscar un activo
 const buscarActivo = async () => {
@@ -423,6 +448,7 @@ const buscarActivo = async () => {
             costoCompra.value = datos_activo.value.costo_compra || "";
             retirado.value = datos_activo.value.retirado || "";
             fecha_retiro.value = datos_activo.value.fecha_retiro || null;
+            motivoRetiroMostrar.value = datos_activo.value.motivo_retiro || "";
         }
     } catch (error) {
         console.error(error);
@@ -631,6 +657,14 @@ const ocultarTerceroList = () => {
     setTimeout(() => { showTerceroList.value = false; }, 150);
 };
 
+// Función para abrir la página del tercero en una nueva pestaña
+const abrirTerceroEnNuevaPestana = () => {
+    if (!tercero.value) return;
+    // Construye la ruta usando el nombre o path definido en el router
+    const routeData = router.resolve({ name: 'Activotercero', params: { tercero: tercero.value } });
+    window.open(routeData.href, '_blank');
+};
+
 // Función para limpiar los campos
 const limpiar = () => {
     datos_activo.value = null;
@@ -687,6 +721,7 @@ const retirarActivo = async () => {
             modalTitle.value = 'Éxito';
             msg.value = response.data.message;
             motivoRetiro.value = "";
+            await buscarActivo();
         }
     } catch (error) {
         console.error(error);
@@ -920,5 +955,34 @@ onMounted(() => {
 .historial-scroll {
     max-height: 340px;
     overflow-y: auto;
+}
+
+.btn-tercero-link {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 1.3rem;
+    padding: 0;
+    box-shadow: none;
+}
+
+.btn-motivo-retiro {
+    background-color: #ffd3d3;
+    border: none;
+    color: #fff;
+    transition: background 0.2s;
+}
+.btn-motivo-retiro:hover {
+    background-color: #ff6666;
+    color: #fff;
+    cursor: help;
+}
+
+.icon-tercero-link {
+    font-size: 1.3rem;
+    line-height: 1;
 }
 </style>
