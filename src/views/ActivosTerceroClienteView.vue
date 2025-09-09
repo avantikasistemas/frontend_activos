@@ -62,7 +62,7 @@
                 <div class="card p-4 mb-4">
                     <div class="row mb-4">
                         <h6>3. Observaciones Generales</h6>
-                        <textarea class="form-control" rows="6" required></textarea>
+                        <textarea class="form-control" rows="2" v-model="observaciones" required :maxlength="300" :readonly="acta_firmada === 1"></textarea>
                     </div>
                 </div>
             </div>
@@ -88,6 +88,9 @@
                             <div class="firma-acta-block-accion">
                                 <div>
                                     <button type="button" class="btn btn-danger" @click="responderActa">Enviar</button>
+                                </div>
+                                <div v-if="acta_firmada === 1">
+                                    <button type="button" class="btn btn-success" @click="">Descargar Acta</button>
                                 </div>
                             </div>
                         </div>
@@ -165,11 +168,13 @@ const pdf_generado_id = route.params.id;
 const nombre = ref('');
 const cargo = ref('');
 const area = ref('');
+const archivo_ruta = ref('');
 const data_response = ref({});
 const data_activos = ref([]);
 const payload = ref(null);
 const observaciones = ref(null);
 const firma_tercero = ref(null);
+const acta_firmada = ref(0);
 
 const msg = ref('');
 const errorMsg = ref('');
@@ -206,6 +211,7 @@ const consultarDatosPdf = async () => {
             area.value = payload.value.payload.cabecera.macroproceso_nombre;
 
             data_activos.value = payload.value.payload.activos;
+            archivo_ruta.value = data_response.value.archivo_ruta;
         }
     } catch (error) {
         console.error(error);
@@ -223,7 +229,8 @@ const responderActa = async () => {
             { 
                 pdf_generado_id: parseInt(pdf_generado_id),
                 observaciones: observaciones.value,
-                firma_tercero: firma_tercero.value
+                firma_tercero: firma_tercero.value,
+                archivo_ruta: archivo_ruta.value
             },
             {
                 headers: {
@@ -233,7 +240,20 @@ const responderActa = async () => {
         );
 
         if (response.status === 200) {
-            console.log(response.data.data);
+            // Crear una URL para el blob
+            const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+            // Crear un enlace temporal para descargar el archivo
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", `acta_final.pdf`);  // Definir el nombre del archivo
+            document.body.appendChild(link);
+            link.click();  // Ejecutar el click para descargar el archivo
+            document.body.removeChild(link);  // Limpiar el DOM
+        } else if (response.status === 210) {
+            modalTitle.value = 'Éxito';
+            msg.value = response.data.message;
+            acta_firmada.value = 1;
+            modalInstance.value.show();
         }
     } catch (error) {
         console.error(error);
@@ -354,7 +374,8 @@ onMounted(() => {
 .firma-acta-block-accion {
     width: 32%;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    gap: 12px;
 }
 .firma-acta-line {
     width: 100%;
