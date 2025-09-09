@@ -62,7 +62,7 @@
                 <div class="card p-4 mb-4">
                     <div class="row mb-4">
                         <h6>3. Observaciones Generales</h6>
-                        <textarea class="form-control" rows="2" v-model="observaciones" required :maxlength="300" :readonly="acta_firmada === 1"></textarea>
+                        <textarea class="form-control" rows="2" v-model="observaciones" :maxlength="300" :readonly="acta_firmada === 1"></textarea>
                     </div>
                 </div>
             </div>
@@ -74,7 +74,7 @@
                             <div class="firma-acta-block">
                                 <div class="firma-acta-line"></div>
                                 <div class="firma-acta-label">Recibe</div>
-                                <input type="file" id="firma_tercero" class="firma-acta-file" accept="image/*" @change="handleImageChange($event)" required />
+                                <input type="file" id="firma_tercero" class="firma-acta-file" accept="image/*" @change="handleImageChange($event)" />
                             </div>
                         </div>
                     </div>
@@ -87,10 +87,10 @@
                         <div class="firmas-acta-container">
                             <div class="firma-acta-block-accion">
                                 <div>
-                                    <button type="button" class="btn btn-danger" @click="responderActa">Enviar</button>
+                                    <button type="button" class="btn btn-danger" @click="responderActa" :disabled="acta_firmada === 1">Enviar</button>
                                 </div>
                                 <div v-if="acta_firmada === 1">
-                                    <button type="button" class="btn btn-success" @click="">Descargar Acta</button>
+                                    <button type="button" class="btn btn-success" @click="descargarCopia">Descargar Copia</button>
                                 </div>
                             </div>
                         </div>
@@ -212,6 +212,7 @@ const consultarDatosPdf = async () => {
 
             data_activos.value = payload.value.payload.activos;
             archivo_ruta.value = data_response.value.archivo_ruta;
+            acta_firmada.value = data_response.value.firmado_tercero;
         }
     } catch (error) {
         console.error(error);
@@ -224,6 +225,8 @@ const consultarDatosPdf = async () => {
 const responderActa = async () => {
 
     try {
+        loading.value = true;
+        loading_msg.value = "Generando acta, por favor espera...";
         const response = await axios.post(
             `${apiUrl}/responder_acta`,
             { 
@@ -259,9 +262,52 @@ const responderActa = async () => {
         console.error(error);
         modalErrorInstance.value.show();
         errorMsg.value = error.response.data.message;
+    } finally {
+        loading.value = false;
+        loading_msg.value = "";
     }
 };
 
+// Función para descargar una copia de el acta firmada
+const descargarCopia = async () => {
+
+    try {
+        loading.value = true;
+        loading_msg.value = "Generando acta, por favor espera...";
+        const response = await axios.post(
+            `${apiUrl}/descargar_copia`,
+            { 
+                pdf_generado_id: parseInt(pdf_generado_id)
+            },
+            {
+                headers: {
+                    Accept: "application/json",
+                }
+            }
+        );
+
+        if (response.status === 200) {
+            // Crear una URL para el blob
+            const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+            // Crear un enlace temporal para descargar el archivo
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", `acta_final.pdf`);  // Definir el nombre del archivo
+            document.body.appendChild(link);
+            link.click();  // Ejecutar el click para descargar el archivo
+            document.body.removeChild(link);  // Limpiar el DOM
+        }
+    } catch (error) {
+        console.error(error);
+        modalErrorInstance.value.show();
+        errorMsg.value = error.response.data.message;
+    } finally {
+        loading.value = false;
+        loading_msg.value = "";
+    }
+};
+
+// Función para manejar el cambio de imagen en la firma
 const handleImageChange = async (event) => {
     const file = event.target.files[0]; // Obtenemos el archivo cargado
     if (file) {
@@ -392,5 +438,33 @@ onMounted(() => {
     margin-top: 8px;
     width: 90%;
     max-width: 180px;
+}
+/* Overlay de carga */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(44, 62, 80, 0.45);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-overlay .spinner-border {
+    width: 3rem;
+    height: 3rem;
+    border-width: 0.35em;
+}
+
+.loading-overlay p {
+    color: #fff;
+    font-size: 1.15rem;
+    margin-top: 1.2rem;
+    text-align: center;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.18);
 }
 </style>
